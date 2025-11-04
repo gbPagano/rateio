@@ -2,8 +2,8 @@
 name = "rachaconta"
 version = "0.1.0"
 edition = "2024"
+authors = ["gbPagano <guilhermebpagano@gmail.com>"]
 
 [dependencies]
 clap = { version = "4.5.51", features = ["derive"] }
-itertools = "0.14.0"
 petgraph = "0.8.3"

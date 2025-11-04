@@ -3,66 +3,64 @@ mod person;
 mod solver;
 
 use clap::Parser;
-use itertools::Itertools;
 
 use person::Person;
 
-fn parse_key_val(s: &str) -> Result<(String, f64), String> {
-    let (key, value) = s.split_once('=').ok_or_else(|| {
-        format!(
-            "argumento inválido, esperado formato 'chave=valor': '{}'",
-            s
-        )
-    })?;
-
-    let parsed_value = value.parse::<f64>().map_err(|e| {
-        format!(
-            "erro ao processar o valor '{}' da chave '{}': {}",
-            value, key, e
-        )
-    })?;
-
-    Ok((key.to_string(), parsed_value))
-}
-
-/// Define os argumentos da linha de comando
+/// Uma CLI para dividir contas de forma justa
+///
+/// Calcula quanto cada pessoa deve pagar ou receber após uma série de gastos compartilhados
 #[derive(Parser, Debug)]
-#[command(
-    version,
-    author,
-    about = "Exemplo de CLI que aceita --num e pares chave=valor"
-)]
+#[command(name = "rachaconta", version)]
 struct Args {
-    /// O número a ser fornecido
-    #[arg(short, long)]
-    num: usize,
+    /// Define o número total de pessoas que devem dividir os gastos.
+    ///
+    /// Por padrão, a conta é dividida igualmente apenas entre quem realizou
+    /// algum pagamento. Use esta opção quando houver pessoas que não pagaram
+    /// nada mas devem participar da divisão.
+    ///
+    /// Exemplo: Se 5 pessoas jantaram mas apenas 2 pagaram, use -p 5    
+    #[arg(short = 'p', long = "pessoas", value_name = "NÚMERO")]
+    total_persons: Option<usize>,
 
-    /// Lista de pares chave=valor posicionais
+    /// Lista dos gastos individuais no formato NOME=VALOR
+    ///
+    /// Cada pagamento deve ser informado como nome da pessoa seguido de
+    /// igual e o valor pago.
+    ///
+    /// Exemplos:
+    ///   Rafael=50.00 Maria=30.50 "Ana Clara"=100
     #[arg(
         required = true,
-        value_parser = parse_key_val
+        value_parser = parse_key_val,
+        value_name = "NOME=VALOR"
     )]
-    pairs: Vec<(String, f64)>, // <-- Mude de volta para Vec<(String, String)>
+    initial_payments: Vec<(String, f64)>,
 }
 
 fn main() {
     let args = Args::parse();
 
-    if args.pairs.len() > args.num {
+    let initial_payments = args.initial_payments;
+    let total_persons = args.total_persons.unwrap_or(initial_payments.len());
+
+    if initial_payments.len() > total_persons {
         eprintln!(
-            "Erro: a conta nao fecha! (Número de pares: {}, --num: {})",
-            args.pairs.len(),
-            args.num
+            "Erro: a conta não fecha! {} pessoa(s) pagaram, mas você informou apenas {} pessoa(s) no total.",
+            initial_payments.len(),
+            total_persons
+        );
+        eprintln!(
+            "Dica: aumente -p para pelo menos {} ou remova a opção -p para dividir apenas entre quem pagou.",
+            initial_payments.len()
         );
         std::process::exit(1);
     }
 
-    let mut persons: Vec<_> = args
-        .pairs
+    let mut persons: Vec<_> = initial_payments
         .iter()
         .map(|p| Person::named(&p.0, p.1))
         .collect();
-    persons.push(Person::unnamed(args.num - args.pairs.len()));
+    persons.push(Person::unnamed(total_persons - initial_payments.len()));
 
     let payments = solver::calc_payments(&persons);
     let payments = solver::optimize_payments(&payments);
@@ -99,4 +97,12 @@ fn main() {
             }
         }
     }
+}
+
+fn parse_key_val(s: &str) -> Result<(String, f64), String> {
+    let (k, v) = s.split_once('=').ok_or("use o formato NOME=VALOR")?;
+    Ok((
+        k.into(),
+        v.parse().map_err(|_| format!("número inválido: {v}"))?,
+    ))
 }
