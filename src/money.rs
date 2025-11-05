@@ -21,12 +21,6 @@ impl Money {
     }
 }
 
-// impl From<usize> for Money {
-//     fn from(value: usize) -> Self {
-//         todo!()
-//     }
-// }
-
 impl<T> From<T> for Money
 where
     T: Into<f64>,

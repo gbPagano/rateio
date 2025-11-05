@@ -37,6 +37,14 @@ struct Args {
         value_name = "NOME=VALOR"
     )]
     initial_payments: Vec<(String, f64)>,
+
+    /// Exporta o resultado no formato Graphviz DOT.
+    ///
+    /// Quando esta opção é ativada, em vez de exibir o resultado numérico
+    /// das transações, o programa imprime na saída padrão a representação
+    /// do grafo no formato **DOT**, compatível com o Graphviz.
+    #[arg(short, long)]
+    graphviz: bool,
 }
 
 fn main() {
@@ -68,9 +76,15 @@ fn main() {
         persons.push(Person::unnamed(remaining));
     }
 
-    let payments = solver::calc_payments(&persons);
-    let payments = solver::optimize_payments(&payments);
+    let mut payments_graph = solver::gen_payments(&persons);
+    payments_graph.optimize();
 
+    if args.graphviz {
+        payments_graph.print_dot();
+        std::process::exit(0);
+    }
+
+    let payments = payments_graph.to_vec();
     for person in &persons {
         let debts: Vec<_> = payments.iter().filter(|p| p.from == *person).collect();
 
