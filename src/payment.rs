@@ -1,8 +1,7 @@
 use std::cmp::Ordering;
 use std::collections::{HashMap, HashSet};
 
-use petgraph::dot::{Config, Dot};
-use petgraph::graph::{DiGraph, NodeIndex};
+use petgraph::dot::Dot;
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoEdgeReferences;
 use petgraph::visit::{EdgeRef, IntoNodeReferences, NodeRef};
@@ -22,7 +21,7 @@ impl Payment {
         Self {
             from: from.clone(),
             to: to.clone(),
-            value: value.into(),
+            value,
         }
     }
 }
@@ -74,7 +73,7 @@ impl Payments {
                     let w1 = self.0.edge_weight(e1).unwrap();
                     let w2 = self.0.edge_weight(e2).unwrap();
 
-                    match w1.cmp(&w2) {
+                    match w1.cmp(w2) {
                         Ordering::Less => {
                             self.0.update_edge(target, source, *w2 - *w1);
                             self.0.remove_edge(e1);
