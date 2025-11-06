@@ -1,11 +1,11 @@
 mod money;
 mod payment;
 mod person;
-mod solver;
 
 use clap::Parser;
 
 use money::Money;
+use payment::Payments;
 use person::Person;
 
 /// Uma CLI para dividir contas de forma justa
@@ -76,7 +76,7 @@ fn main() {
         persons.push(Person::unnamed(remaining));
     }
 
-    let mut payments_graph = solver::gen_payments(&persons);
+    let mut payments_graph: Payments = persons.into_iter().collect();
     payments_graph.optimize();
 
     if args.graphviz {
@@ -85,8 +85,8 @@ fn main() {
     }
 
     let payments = payments_graph.to_vec();
-    for person in &persons {
-        let debts: Vec<_> = payments.iter().filter(|p| p.from == *person).collect();
+    for person in payments_graph.get_persons() {
+        let debts: Vec<_> = payments.iter().filter(|p| p.from == person).collect();
 
         let mut total_debt: Money = debts.iter().map(|p| p.value).sum();
         if let Person::Unnamed { size } = person {
@@ -95,7 +95,7 @@ fn main() {
 
         let total_to_receive: Money = payments
             .iter()
-            .filter_map(|p| if p.to == *person { Some(p.value) } else { None })
+            .filter_map(|p| if p.to == person { Some(p.value) } else { None })
             .sum();
 
         println!("\n{}:", person.identifier());
@@ -109,7 +109,7 @@ fn main() {
             if let Person::Unnamed { size } = person {
                 println!(
                     "    pagar: {:.2} -> {}",
-                    p.value / *size as f64,
+                    p.value / size as f64,
                     p.to.identifier()
                 );
             } else {
