@@ -90,7 +90,7 @@ fn main() {
 
         let mut total_debt: Money = debts.iter().map(|p| p.value).sum();
         if let Person::Unnamed { size } = person {
-            total_debt = ((total_persons / size) as f64).into();
+            total_debt /= size as f64;
         }
 
         let total_to_receive: Money = payments

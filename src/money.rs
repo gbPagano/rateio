@@ -1,6 +1,6 @@
 use std::fmt;
 use std::iter::Sum;
-use std::ops::{Add, Div, Mul, Sub};
+use std::ops::{Add, Div, DivAssign, Mul, Sub};
 
 /// Representa um valor monetário em centavos.
 ///
@@ -102,6 +102,15 @@ where
     type Output = Money;
     fn div(self, rhs: T) -> Self::Output {
         (self.decimal() / rhs.into()).into()
+    }
+}
+
+impl<T> DivAssign<T> for Money
+where
+    T: Into<f64>,
+{
+    fn div_assign(&mut self, rhs: T) {
+        *self = Money(self.0 + (self.decimal() / rhs.into()) as usize);
     }
 }
 
