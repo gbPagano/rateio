@@ -34,7 +34,7 @@ impl Person {
                 name,
                 money_spent: _,
             } => name.clone(),
-            Person::Unnamed { size } => format!("Outras {size} pessoas"),
+            Person::Unnamed { size } => format!("{size} pessoas"),
         }
     }
 

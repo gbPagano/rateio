@@ -80,41 +80,8 @@ fn main() {
 
     if args.graphviz {
         payments_graph.print_dot();
-        std::process::exit(0);
-    }
-
-    let payments = payments_graph.to_vec();
-    for person in payments_graph.get_persons() {
-        let debts: Vec<_> = payments.iter().filter(|p| p.from == person).collect();
-
-        let mut total_debt: Decimal = debts.iter().map(|p| p.value).sum();
-        if let Person::Unnamed { size } = person {
-            total_debt /= Decimal::from(size);
-        }
-
-        let total_to_receive: Decimal = payments
-            .iter()
-            .filter_map(|p| if p.to == person { Some(p.value) } else { None })
-            .sum();
-
-        println!("\n{}:", person.identifier());
-        println!("    total a pagar: {total_debt:.2}");
-        println!("    total a receber: {total_to_receive:.2}");
-        if !debts.is_empty() {
-            println!()
-        }
-
-        for p in debts {
-            if let Person::Unnamed { size } = person {
-                println!(
-                    "    pagar: {:.2} -> {}",
-                    p.value / Decimal::from(size),
-                    p.to.identifier()
-                );
-            } else {
-                println!("    pagar: {:.2} -> {}", p.value, p.to.identifier());
-            }
-        }
+    } else {
+        payments_graph.print_text();
     }
 }
 

@@ -223,6 +223,53 @@ impl Payments {
         }
         true
     }
+
+    /// Imprime no console um relatório textual e legível da divisão de contas.
+    pub fn print_text(&self) {
+        let payments = self.to_vec();
+
+        // Ordenamos as pessoas para que as Unnamed fiquem por último.
+        let mut persons = self.get_persons();
+        persons.sort();
+
+        let num_persons: u32 = persons.iter().map(|p| p.size()).sum();
+        let total_amount: Decimal = persons.iter().map(|p| p.money_spent()).sum();
+        let amount_for_each: Decimal = total_amount / Decimal::from(num_persons);
+
+        println!("Valor total da conta: {total_amount:.2}");
+        println!("    {amount_for_each:.2} para cada");
+
+        for person in persons {
+            let debts: Vec<_> = payments.iter().filter(|p| p.from == person).collect();
+
+            let mut total_debt: Decimal = debts.iter().map(|p| p.value).sum();
+            if let Person::Unnamed { size } = person {
+                total_debt /= Decimal::from(size);
+            }
+
+            let total_to_receive: Decimal = payments
+                .iter()
+                .filter_map(|p| if p.to == person { Some(p.value) } else { None })
+                .sum();
+
+            match person {
+                Person::Named { .. } => println!("\n{}:", person.identifier()),
+                Person::Unnamed { .. } => {
+                    println!("\nCada uma das {} que restaram:", person.identifier())
+                }
+            }
+            println!("    total a pagar: {total_debt:.2}");
+            println!("    total a receber: {total_to_receive:.2}");
+
+            if !debts.is_empty() {
+                println!()
+            }
+            for p in debts {
+                let value = p.value / Decimal::from(person.size());
+                println!("    pagar: {value:.2} -> {}", p.to.identifier());
+            }
+        }
+    }
 }
 
 impl FromIterator<Person> for Payments {
