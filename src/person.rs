@@ -13,7 +13,7 @@ pub enum Person {
     Named { name: String, money_spent: Money },
     /// Um grupo de pessoas que não pagaram.
     /// `size` é o número de pessoas neste grupo (ex: 3 pessoas).
-    Unnamed { size: usize },
+    Unnamed { size: u32 },
 }
 
 impl Person {
@@ -24,7 +24,7 @@ impl Person {
         }
     }
 
-    pub fn unnamed(size: usize) -> Self {
+    pub fn unnamed(size: u32) -> Self {
         Person::Unnamed { size }
     }
 
@@ -43,6 +43,14 @@ impl Person {
         match self {
             Person::Named { money_spent, .. } => *money_spent,
             Person::Unnamed { .. } => 0.into(),
+        }
+    }
+
+    /// Retonar quantas pessoas essa entidade representa.
+    pub fn size(&self) -> u32 {
+        match self {
+            Person::Named { .. } => 1,
+            Person::Unnamed { size } => *size,
         }
     }
 }

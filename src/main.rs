@@ -20,7 +20,7 @@ struct Args {
     /// algum pagamento. Use esta opção quando houver pessoas que não pagaram
     /// nada mas devem participar da divisão.
     ///
-    /// Exemplo: Se 5 pessoas jantaram mas apenas 2 pagaram, use -p 5    
+    /// Exemplo: Se 5 pessoas jantaram mas apenas 2 pagaram, use -p 5
     #[arg(short = 'p', long = "pessoas", value_name = "NÚMERO")]
     total_persons: Option<usize>,
 
@@ -73,7 +73,7 @@ fn main() {
 
     let remaining = total_persons - initial_payments.len();
     if remaining > 0 {
-        persons.push(Person::unnamed(remaining));
+        persons.push(Person::unnamed(remaining as u32));
     }
 
     let mut payments_graph: Payments = persons.into_iter().collect();
