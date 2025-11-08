@@ -4,7 +4,7 @@ use petgraph::dot::Dot;
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoEdgeReferences;
 use petgraph::visit::{EdgeRef, IntoNodeReferences, NodeRef};
-use rust_decimal::Decimal;
+use rust_decimal::{Decimal, dec};
 
 use crate::person::Person;
 
@@ -127,13 +127,13 @@ impl Payments {
             let remaining_credit = (credit - transfer_amount).round_dp(2);
 
             // Se o devedor ainda deve algo, ele volta para o heap
-            if remaining_debt > Decimal::new(1, 2) {
+            if remaining_debt > dec!(0.01) {
                 debtor_entry.0 = remaining_debt;
                 debtors.push(debtor_entry);
             }
 
             // Se o credor ainda tem algo a receber, ele volta para o heap
-            if remaining_credit > Decimal::new(1, 2) {
+            if remaining_credit > dec!(0.01) {
                 creditor_entry.0 = remaining_credit;
                 creditors.push(creditor_entry);
             }
@@ -216,7 +216,7 @@ impl Payments {
             // Verifica se a diferença está dentro do limite de tolerância.
             // O limite máximo é de 2 centavos
             let diff = (amount_for_each - final_balance).abs();
-            if diff.round_dp(2) > Decimal::new(2, 2) {
+            if diff.round_dp(2) > dec!(0.02) {
                 dbg!(diff, amount_for_each, final_balance, person);
                 return false;
             }
@@ -301,56 +301,35 @@ mod test {
     use super::*;
     use std::collections::HashSet;
 
-    // #[test]
-    // fn simplify_bidirectional_edges() {
-    //     let persons = vec![
-    //         Person::named("A", 10.into()),
-    //         Person::named("B", 20.into()),
-    //         Person::named("C", 10.into()),
-    //         Person::unnamed(1),
-    //     ];
-    //
-    //     let mut initial_payments: Payments = persons.clone().into_iter().collect();
-    //
-    //     let final_payments = vec![
-    //         Payment::new(&persons[0], &persons[1], 2.5.into()),
-    //         Payment::new(&persons[2], &persons[1], 2.5.into()),
-    //         Payment::new(&persons[3], &persons[0], 2.5.into()),
-    //         Payment::new(&persons[3], &persons[2], 2.5.into()),
-    //         Payment::new(&persons[3], &persons[1], 5.into()),
-    //     ];
-    //
-    //     initial_payments.simplify_bidirectional_edges();
-    //     let left: HashSet<Payment> = HashSet::from_iter(initial_payments.to_vec());
-    //     let right: HashSet<Payment> = HashSet::from_iter(final_payments);
-    //
-    //     assert_eq!(left, right);
-    //     assert!(initial_payments.validate());
-    // }
-    //
-    // #[test]
-    // fn simplify_transitive_edges() {
-    //     let persons = vec![
-    //         Person::named("A", 14.into()),
-    //         Person::named("B", 20.into()),
-    //         Person::named("C", 8.into()),
-    //         Person::unnamed(1),
-    //     ];
-    //
-    //     let mut initial_payments: Payments = persons.clone().into_iter().collect();
-    //
-    //     let final_payments = vec![
-    //         Payment::new(&persons[2], &persons[1], 2.5.into()),
-    //         Payment::new(&persons[3], &persons[1], 7.into()),
-    //         Payment::new(&persons[3], &persons[0], 3.5.into()),
-    //     ];
-    //
-    //     initial_payments.simplify_bidirectional_edges();
-    //     initial_payments.simplify_transitive_edges();
-    //     let left: HashSet<Payment> = HashSet::from_iter(initial_payments.to_vec());
-    //     let right: HashSet<Payment> = HashSet::from_iter(final_payments);
-    //
-    //     assert_eq!(left, right);
-    //     assert!(initial_payments.validate());
-    // }
+    #[test]
+    fn test_minimize_payments() {
+        // italo=222.48 maria=14.5 ana_clara=22.48 luis=146.6 guilherme=48.76 rafael=232 -p 11
+        let persons = vec![
+            Person::named("italo", dec!(222.48)),
+            Person::named("maria", dec!(14.5)),
+            Person::named("ana_clara", dec!(22.48)),
+            Person::named("luis", dec!(146.6)),
+            Person::named("guilherme", dec!(48.76)),
+            Person::named("rafael", dec!(232)),
+            Person::unnamed(5),
+        ];
+
+        let mut initial_payments: Payments = persons.clone().into_iter().collect();
+
+        let final_payments = vec![
+            Payment::new(&persons[2], &persons[3], dec!(36.22)), // ana_clara -> luis
+            Payment::new(&persons[2], &persons[0], dec!(3.73)),  // ana_clara -> italo
+            Payment::new(&persons[4], &persons[0], dec!(13.68)), // guilherme -> italo
+            Payment::new(&persons[1], &persons[3], dec!(47.94)), // maria -> luis
+            Payment::new(&persons[6], &persons[5], dec!(169.56)), // 5 pessoas -> rafael
+            Payment::new(&persons[6], &persons[0], dec!(142.63)), // 5 pessoas -> italo
+        ];
+
+        initial_payments.optimize();
+        let left: HashSet<Payment> = HashSet::from_iter(initial_payments.to_vec());
+        let right: HashSet<Payment> = HashSet::from_iter(final_payments);
+
+        assert_eq!(left, right);
+        assert!(initial_payments.validate());
+    }
 }
