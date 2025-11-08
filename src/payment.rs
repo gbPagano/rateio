@@ -198,7 +198,7 @@ impl Payments {
     /// Calcula o valor médio que cada pessoa deveria ter pago e compara com o saldo
     /// final de cada participante (considerando o que gastou, pagou e recebeu).
     ///
-    /// Aceita pequenas diferenças de até '0,5 centavo * número de participantes'.
+    /// Aceita pequenas diferenças de até '0,05 centavo * número de participantes'.
     /// Retorna `true` se todos os saldos estiverem dentro desse limite.
     pub fn validate(&self) -> bool {
         let payments = self.to_vec();
@@ -223,10 +223,14 @@ impl Payments {
             let final_balance = (person.money_spent() + to_pay - to_receive) / person.size();
 
             // Verifica se a diferença está dentro do limite de tolerância.
-            // O limite é definido como 0.5 centavos multiplicado pelo número total de pessoas,
-            // permitindo uma margem de erro proporcional ao tamanho do grupo.
+            // O limite máximo é calculado como 0.05 centavos multiplicado pelo
+            // número total de pessoas, garantindo uma margem proporcional ao grupo.
+            // Há também um limite mínimo de 0.01 centavo para evitar falsos positivos
+            // em grupos muito pequenos.
             let diff = (amount_for_each.decimal() - final_balance.decimal()).abs();
-            if diff >= 0.005 * num_persons as f64 {
+            let max_diff = (0.0005 * num_persons as f64).max(0.01);
+            if diff.round() >= max_diff {
+                dbg!(diff, max_diff, amount_for_each, final_balance);
                 return false;
             }
         }
@@ -242,9 +246,7 @@ impl FromIterator<Person> for Payments {
         let num_persons: u32 = persons.iter().map(|p| p.size()).sum();
 
         for creditor in persons.iter() {
-            if matches!(creditor, Person::Unnamed { .. })
-                || matches!(creditor, Person::Named { money_spent, .. } if money_spent.cents() == 0)
-            {
+            if creditor.money_spent() == Money::from(0) {
                 continue;
             }
 

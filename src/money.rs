@@ -4,20 +4,15 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, Sub};
 
 /// Representa um valor monetário em centavos.
 ///
-/// `Money` armazena valores monetários como inteiros (centavos) para evitar
+/// `Money` armazena valores monetários como inteiros (1 décimo de centavos) para evitar
 /// problemas de precisão de ponto flutuante em cálculos financeiros.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Money(usize);
 
 impl Money {
-    /// Retorna o valor total em centavos.
-    pub fn cents(&self) -> usize {
-        self.0
-    }
-
     /// Retorna o valor como um número decimal (em reais/dólares/etc.).
     pub fn decimal(&self) -> f64 {
-        self.0 as f64 / 100.
+        self.0 as f64 / 1000.
     }
 }
 
@@ -26,7 +21,7 @@ where
     T: Into<f64>,
 {
     fn from(value: T) -> Self {
-        let cents: f64 = (value.into() * 100.).round();
+        let cents: f64 = (value.into() * 1000.).round();
         Self(cents as usize)
     }
 }
@@ -126,25 +121,25 @@ mod test {
 
     #[test]
     fn test_create_money_from_numbers() {
-        assert_eq!(Money::from(20), Money(2000));
-        assert_eq!(Money::from(139.94), Money(13994));
+        assert_eq!(Money::from(20), Money(20000));
+        assert_eq!(Money::from(139.94), Money(139940));
     }
 
     #[test]
     fn test_from_rounds_correctly() {
-        assert_eq!(Money::from(10.556), Money(1056));
-        assert_eq!(Money::from(10.554), Money(1055));
+        assert_eq!(Money::from(10.5556), Money(10556));
+        assert_eq!(Money::from(10.5554), Money(10555));
     }
 
     #[test]
     fn test_read_money() {
         let m = Money::from(20);
-        assert_eq!(m.cents(), 2000);
+        assert_eq!(m.0, 20000);
         assert_eq!(m.decimal(), 20.0);
 
         let m = Money::from(19.952);
-        assert_eq!(m.cents(), 1995);
-        assert_eq!(m.decimal(), 19.95);
+        assert_eq!(m.0, 19952);
+        assert_eq!(m.decimal(), 19.952);
     }
 
     #[test]
