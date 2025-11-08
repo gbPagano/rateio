@@ -1,10 +1,9 @@
-mod money;
 mod payment;
 mod person;
 
 use clap::Parser;
+use rust_decimal::Decimal;
 
-use money::Money;
 use payment::Payments;
 use person::Person;
 
@@ -36,7 +35,7 @@ struct Args {
         value_parser = parse_key_val,
         value_name = "NOME=VALOR"
     )]
-    initial_payments: Vec<(String, f64)>,
+    initial_payments: Vec<(String, Decimal)>,
 
     /// Exporta o resultado no formato Graphviz DOT.
     ///
@@ -68,7 +67,7 @@ fn main() {
 
     let mut persons: Vec<_> = initial_payments
         .iter()
-        .map(|p| Person::named(&p.0, p.1.into()))
+        .map(|p| Person::named(&p.0, p.1))
         .collect();
 
     let remaining = total_persons - initial_payments.len();
@@ -88,12 +87,12 @@ fn main() {
     for person in payments_graph.get_persons() {
         let debts: Vec<_> = payments.iter().filter(|p| p.from == person).collect();
 
-        let mut total_debt: Money = debts.iter().map(|p| p.value).sum();
+        let mut total_debt: Decimal = debts.iter().map(|p| p.value).sum();
         if let Person::Unnamed { size } = person {
-            total_debt /= size as f64;
+            total_debt /= Decimal::from(size);
         }
 
-        let total_to_receive: Money = payments
+        let total_to_receive: Decimal = payments
             .iter()
             .filter_map(|p| if p.to == person { Some(p.value) } else { None })
             .sum();
@@ -109,7 +108,7 @@ fn main() {
             if let Person::Unnamed { size } = person {
                 println!(
                     "    pagar: {:.2} -> {}",
-                    p.value / size as f64,
+                    p.value / Decimal::from(size),
                     p.to.identifier()
                 );
             } else {
@@ -120,8 +119,8 @@ fn main() {
 }
 
 /// Parser customizado para `clap` que transforma uma string "NOME=VALOR"
-/// em uma tupla `(String, f64)`.
-fn parse_key_val(s: &str) -> Result<(String, f64), String> {
+/// em uma tupla `(String, Decimal)`.
+fn parse_key_val(s: &str) -> Result<(String, Decimal), String> {
     let (k, v) = s.split_once('=').ok_or("use o formato NOME=VALOR")?;
     Ok((
         k.into(),

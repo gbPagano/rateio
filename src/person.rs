@@ -1,7 +1,7 @@
 use std::fmt;
 use std::hash::Hash;
 
-use crate::money::Money;
+use rust_decimal::Decimal;
 
 /// Representa um participante na divisão da conta.
 ///
@@ -10,17 +10,17 @@ use crate::money::Money;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum Person {
     /// Uma pessoa específica que pagou um valor.
-    Named { name: String, money_spent: Money },
+    Named { name: String, money_spent: Decimal },
     /// Um grupo de pessoas que não pagaram.
     /// `size` é o número de pessoas neste grupo (ex: 3 pessoas).
     Unnamed { size: u32 },
 }
 
 impl Person {
-    pub fn named(name: &str, money_spent: Money) -> Self {
+    pub fn named(name: &str, money_spent: Decimal) -> Self {
         Person::Named {
             name: name.into(),
-            money_spent,
+            money_spent: money_spent.round_dp(2),
         }
     }
 
@@ -39,7 +39,7 @@ impl Person {
     }
 
     /// Retorna o valor total que esta entidade pagou inicialmente.
-    pub fn money_spent(&self) -> Money {
+    pub fn money_spent(&self) -> Decimal {
         match self {
             Person::Named { money_spent, .. } => *money_spent,
             Person::Unnamed { .. } => 0.into(),

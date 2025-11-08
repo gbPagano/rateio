@@ -4,8 +4,8 @@ use petgraph::dot::Dot;
 use petgraph::prelude::StableDiGraph;
 use petgraph::visit::IntoEdgeReferences;
 use petgraph::visit::{EdgeRef, IntoNodeReferences, NodeRef};
+use rust_decimal::Decimal;
 
-use crate::money::Money;
 use crate::person::Person;
 
 /// Representa uma transação única de pagamento entre duas pessoas.
@@ -13,11 +13,11 @@ use crate::person::Person;
 pub struct Payment {
     pub from: Person,
     pub to: Person,
-    pub value: Money,
+    pub value: Decimal,
 }
 
 impl Payment {
-    pub fn new(from: &Person, to: &Person, value: Money) -> Self {
+    pub fn new(from: &Person, to: &Person, value: Decimal) -> Self {
         Self {
             from: from.clone(),
             to: to.clone(),
@@ -27,11 +27,11 @@ impl Payment {
 }
 
 /// Representa o grafo de pagamentos.
-pub struct Payments(StableDiGraph<Person, Money>);
+pub struct Payments(StableDiGraph<Person, Decimal>);
 
 impl Payments {
     pub fn new(payments: &[Payment]) -> Self {
-        let mut graph = StableDiGraph::<Person, Money>::new();
+        let mut graph = StableDiGraph::<Person, Decimal>::new();
 
         let persons: HashSet<_> = payments.iter().flat_map(|p| [&p.from, &p.to]).collect();
 
@@ -77,14 +77,13 @@ impl Payments {
     ///    insere as novas arestas otimizada.
     pub fn optimize(&mut self) {
         // 1. Calcular Balanços Líquidos
-        // `i64` é usado para permitir balanços negativos (devedores).
-        let mut balances = HashMap::<Person, i64>::new();
+        let mut balances = HashMap::<Person, Decimal>::new();
         for person in self.get_persons() {
-            balances.insert(person, 0);
+            balances.insert(person, 0.into());
         }
 
         for edge in self.0.edge_references() {
-            let value = edge.weight().raw() as i64;
+            let value = edge.weight();
             let source = self.0.node_weight(edge.source()).unwrap();
             let target = self.0.node_weight(edge.target()).unwrap();
 
@@ -100,8 +99,8 @@ impl Payments {
 
         for (node_idx, balance) in balances {
             match balance {
-                b if b < 0 => debtors.push((-b, node_idx)),
-                b if b > 0 => creditors.push((b, node_idx)),
+                b if b.is_sign_negative() => debtors.push((-b, node_idx)),
+                b if b.is_sign_positive() => creditors.push((b, node_idx)),
                 _ => (),
             }
         }
@@ -116,25 +115,25 @@ impl Payments {
             let debt = debtor_entry.0;
             let credit = creditor_entry.0;
 
-            let transfer_amount = debt.min(credit);
+            let transfer_amount = debt.min(credit).round_dp(2);
 
             new_payments.push(Payment::new(
                 &debtor_entry.1,
                 &creditor_entry.1,
-                Money::from(transfer_amount as f64 / 1000.),
+                transfer_amount,
             ));
 
-            let remaining_debt = debt - transfer_amount;
-            let remaining_credit = credit - transfer_amount;
+            let remaining_debt = (debt - transfer_amount).round_dp(2);
+            let remaining_credit = (credit - transfer_amount).round_dp(2);
 
             // Se o devedor ainda deve algo, ele volta para o heap
-            if remaining_debt > 0 {
+            if remaining_debt > Decimal::new(1, 2) {
                 debtor_entry.0 = remaining_debt;
                 debtors.push(debtor_entry);
             }
 
             // Se o credor ainda tem algo a receber, ele volta para o heap
-            if remaining_credit > 0 {
+            if remaining_credit > Decimal::new(1, 2) {
                 creditor_entry.0 = remaining_credit;
                 creditors.push(creditor_entry);
             }
@@ -189,39 +188,36 @@ impl Payments {
     /// Calcula o valor médio que cada pessoa deveria ter pago e compara com o saldo
     /// final de cada participante (considerando o que gastou, pagou e recebeu).
     ///
-    /// Aceita pequenas diferenças de até '0,05 centavo * número de participantes'.
+    /// Aceita pequenas diferenças de até 2 centavos.
     /// Retorna `true` se todos os saldos estiverem dentro desse limite.
     pub fn validate(&self) -> bool {
         let payments = self.to_vec();
         let persons = self.get_persons();
 
-        let num_persons: u32 = persons.iter().map(|p| p.size()).sum();
-        let total_debt: Money = persons.iter().map(|p| p.money_spent()).sum();
+        let num_persons: Decimal = persons.iter().map(|p| Decimal::from(p.size())).sum();
+        let total_debt: Decimal = persons.iter().map(|p| p.money_spent()).sum();
         let amount_for_each = total_debt / num_persons;
 
         for person in persons {
-            let to_receive: Money = payments
+            let to_receive: Decimal = payments
                 .iter()
                 .filter(|p| p.to == person)
                 .map(|p| p.value)
                 .sum();
-            let to_pay: Money = payments
+            let to_pay: Decimal = payments
                 .iter()
                 .filter(|p| p.from == person)
                 .map(|p| p.value)
                 .sum();
 
-            let final_balance = (person.money_spent() + to_pay - to_receive) / person.size();
+            let final_balance =
+                (person.money_spent() + to_pay - to_receive) / Decimal::from(person.size());
 
             // Verifica se a diferença está dentro do limite de tolerância.
-            // O limite máximo é calculado como 0.05 centavos multiplicado pelo
-            // número total de pessoas, garantindo uma margem proporcional ao grupo.
-            // Há também um limite mínimo de 0.01 centavo para evitar falsos positivos
-            // em grupos muito pequenos.
-            let diff = (amount_for_each.decimal() - final_balance.decimal()).abs();
-            let max_diff = (0.0005 * num_persons as f64).max(0.01);
-            if diff.round() >= max_diff {
-                dbg!(diff, max_diff, amount_for_each, final_balance);
+            // O limite máximo é de 2 centavos
+            let diff = (amount_for_each - final_balance).abs();
+            if diff.round_dp(2) > Decimal::new(2, 2) {
+                dbg!(diff, amount_for_each, final_balance, person);
                 return false;
             }
         }
@@ -234,18 +230,18 @@ impl FromIterator<Person> for Payments {
         let persons: Vec<Person> = iter.into_iter().collect();
         let mut payments = Vec::new();
 
-        let num_persons: u32 = persons.iter().map(|p| p.size()).sum();
+        let num_persons: Decimal = persons.iter().map(|p| Decimal::from(p.size())).sum();
 
         for creditor in persons.iter() {
-            if creditor.money_spent() == Money::from(0) {
+            if creditor.money_spent().is_zero() {
                 continue;
             }
 
-            let amount_for_each = creditor.money_spent() / num_persons as f64;
+            let amount_for_each = creditor.money_spent() / num_persons;
             for debitor in persons.iter().filter(|p| p != &creditor) {
-                let amount = amount_for_each * debitor.size();
+                let amount = amount_for_each * Decimal::from(debitor.size());
 
-                payments.push(Payment::new(debitor, creditor, amount));
+                payments.push(Payment::new(debitor, creditor, amount.round_dp(3)));
             }
         }
 
