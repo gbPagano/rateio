@@ -34,7 +34,7 @@ Neste exemplo, R$ 230,50 serão divididos entre 5 pessoas (R$ 46,10 cada).
 
 Visualize as transações como um grafo usando Graphviz:
 ```bash
-rateio --graphviz Italo=100 "Ana Clara"=50 -p 3 | dot -Tpng > grafo.png
+rateio --graphviz Italo=100 "Ana Clara"=50 -p 3 -g | dot -Tpng > grafo.png
 ```
 
 ## Exemplos Práticos
