@@ -11,7 +11,7 @@ use person::Person;
 ///
 /// Calcula quanto cada pessoa deve pagar ou receber após uma série de gastos compartilhados
 #[derive(Parser, Debug)]
-#[command(name = "rachaconta", version)]
+#[command(name = "rateio", version)]
 struct Args {
     /// Define o número total de pessoas que devem dividir os gastos.
     ///
