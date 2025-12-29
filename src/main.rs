@@ -54,12 +54,12 @@ fn main() {
     let args = Args::parse();
 
     let initial_payments = args.initial_payments;
-    let total_persons = args.total_persons.unwrap_or(initial_payments.len());
-
     let mut initial_payments_map = HashMap::new();
     for (name, value) in initial_payments {
         *initial_payments_map.entry(name).or_insert(Decimal::ZERO) += value;
     }
+
+    let total_persons = args.total_persons.unwrap_or(initial_payments_map.len());
 
     if initial_payments_map.len() > total_persons {
         eprintln!(
