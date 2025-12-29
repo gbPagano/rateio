@@ -1,6 +1,8 @@
 mod payment;
 mod person;
 
+use std::collections::HashMap;
+
 use clap::Parser;
 use rust_decimal::Decimal;
 
@@ -54,15 +56,20 @@ fn main() {
     let initial_payments = args.initial_payments;
     let total_persons = args.total_persons.unwrap_or(initial_payments.len());
 
-    if initial_payments.len() > total_persons {
+    let mut initial_payments_map = HashMap::new();
+    for (name, value) in initial_payments {
+        *initial_payments_map.entry(name).or_insert(Decimal::ZERO) += value;
+    }
+
+    if initial_payments_map.len() > total_persons {
         eprintln!(
             "Erro: a conta não fecha! {} pessoa(s) pagaram, mas você informou apenas {} pessoa(s) no total.",
-            initial_payments.len(),
+            initial_payments_map.len(),
             total_persons
         );
         eprintln!(
             "Dica: aumente -p para pelo menos {} ou remova a opção -p para dividir apenas entre quem pagou.",
-            initial_payments.len()
+            initial_payments_map.len()
         );
         std::process::exit(1);
     } else if total_persons <= 1 {
@@ -71,12 +78,12 @@ fn main() {
         std::process::exit(1);
     }
 
-    let mut persons: Vec<_> = initial_payments
+    let mut persons: Vec<_> = initial_payments_map
         .iter()
-        .map(|p| Person::named(&p.0, p.1))
+        .map(|p| Person::named(&p.0, *p.1))
         .collect();
 
-    let remaining = total_persons - initial_payments.len();
+    let remaining = total_persons - initial_payments_map.len();
     if remaining > 0 {
         persons.push(Person::unnamed(remaining as u32));
     }
